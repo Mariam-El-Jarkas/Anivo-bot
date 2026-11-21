@@ -11,9 +11,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run source-check placeholder
-        run: python -m anivo.check_sources
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ANIVO
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
+        run: python -m anivo.run
