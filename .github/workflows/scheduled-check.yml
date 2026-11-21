@@ -33,6 +33,7 @@ jobs:
           EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
         run: python -m anivo.run
 
+     
       - name: Save ANIVO memory
         run: |
           git config user.name "github-actions[bot]"
@@ -40,7 +41,9 @@ jobs:
           git add -f data/seen_posts.json
           if ! git diff --cached --quiet; then
             git commit -m "Update ANIVO seen posts"
-            git push
+            git pull --rebase origin main
+            git push origin main
           else
             echo "No changes to save."
           fi
+
