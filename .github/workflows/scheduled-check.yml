@@ -1,35 +1,19 @@
-name: ANIVO - Monitor anime news
+name: ANIVO - Scheduled source check
+
 on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
-permissions:
-  contents: write
-concurrency:
-  group: anivo-news-monitor
-  cancel-in-progress: false
+
 jobs:
-  monitor:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - name: Fetch, rewrite and DM new posts
-        env:
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
-        run: python -m anivo.run
-      - name: Persist duplicate tracking
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/seen_posts.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Update ANIVO seen-post state"
-            git push
-          fi
+      - name: Run source-check placeholder
+        run: python -m anivo.check_sources
