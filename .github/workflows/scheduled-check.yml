@@ -1,3 +1,4 @@
+
 name: ANIVO - Scheduled source check
 
 on:
@@ -5,9 +6,13 @@ on:
     - cron: "*/15 * * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,3 +32,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
         run: python -m anivo.run
+
+      - name: Save ANIVO memory
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/seen_posts.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update ANIVO seen posts"
+            git push
+          fi
