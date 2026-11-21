@@ -1,32 +1,16 @@
-import os
-import requests
+import os, requests
+API="https://discord.com/api/v10"
+SIGNATURE="🌸 أنيفو || ANIVO 🌸"
 
-DISCORD_API = "https://discord.com/api/v10"
-
-
-def send_dm(message: str) -> None:
-    token = os.environ["DISCORD_BOT_TOKEN"]
-    user_id = os.environ["DISCORD_USER_ID"]
-    headers = {
-        "Authorization": f"Bot {token}",
-        "Content-Type": "application/json",
-        "User-Agent": "ANIVO (https://github.com/, 0.1.0)",
-    }
-
-    # Create (or retrieve) a DM channel with the configured user.
-    response = requests.post(
-        f"{DISCORD_API}/users/@me/channels",
-        headers=headers,
-        json={"recipient_id": user_id},
-        timeout=20,
-    )
-    response.raise_for_status()
-    channel_id = response.json()["id"]
-
-    sent = requests.post(
-        f"{DISCORD_API}/channels/{channel_id}/messages",
-        headers=headers,
-        json={"content": message},
-        timeout=20,
-    )
+def send_news(item, arabic):
+    headers={"Authorization":f"Bot {os.environ['DISCORD_BOT_TOKEN']}",
+             "Content-Type":"application/json","User-Agent":"ANIVO/0.2"}
+    dm=requests.post(f"{API}/users/@me/channels",headers=headers,
+                     json={"recipient_id":os.environ["DISCORD_USER_ID"]},timeout=20)
+    dm.raise_for_status()
+    content=f"{arabic}\n\nالمصدر: {item['link']}\n\n{SIGNATURE}"
+    payload={"content":content[:2000]}
+    if item.get("image_url"): payload["embeds"]=[{"image":{"url":item["image_url"]}}]
+    sent=requests.post(f"{API}/channels/{dm.json()['id']}/messages",
+                       headers=headers,json=payload,timeout=25)
     sent.raise_for_status()
