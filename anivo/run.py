@@ -7,7 +7,12 @@ from anivo.state import load, save
 from anivo.rewriter import rewrite
 from anivo.discord_client import send_news
 from anivo.discord_client import send_message, bold, SIGNATURE
-from anivo.ranking_image import build_ranking_image, build_schedule_image
+from anivo.ranking_image import (
+    build_character_image,
+    build_ranking_image,
+    build_schedule_image,
+    current_week_data,
+)
 from anivo.sources import (
     fetch_anitrendz_chart,
     fetch_anime_schedule,
@@ -23,26 +28,45 @@ def main():
     if "--weekly" in sys.argv:
         anime_items = fetch_anitrendz_chart("top-anime", 10)
         if anime_items:
+            week = {
+                "no": anime_items[0].get("week_no"),
+                "season": anime_items[0].get("season"),
+                "date": anime_items[0].get("chart_date"),
+            }
             content = f"**أفضل 10 أنميات أسبوعية من Anime Trending**\n\n{SIGNATURE}"
             image_bytes = build_ranking_image(
                 anime_items,
-                title="TOP 10 ANIME OF THE WEEK",
+                title="أفضل ١٠ أنميات الأسبوع",
                 source_url="https://www.anitrendz.com/charts/top-anime",
+                week=week,
             )
             send_message(content, image_bytes=image_bytes, filename="anivo-top-anime-week.png")
 
         male = fetch_anitrendz_chart("male-characters", 5)
         female = fetch_anitrendz_chart("female-characters", 5)
-        character_items = male + female
+        character_items = [
+            {
+                **item,
+                "character_group": group,
+                "sub_text": f"{label} · {item.get('sub_text', '')}",
+            }
+            for entries, group, label in (
+                (male, "male", "ذكور"),
+                (female, "female", "إناث"),
+            )
+            for item in entries
+        ]
         if character_items:
-            character_items = [
-                {**item, "position": index}
-                for index, item in enumerate(character_items, 1)
-            ]
             content = f"**أفضل 10 شخصيات أسبوعية من Anime Trending**\n\n{SIGNATURE}"
-            image_bytes = build_ranking_image(
+            character_week = {
+                "no": character_items[0].get("week_no"),
+                "season": character_items[0].get("season"),
+                "date": character_items[0].get("chart_date"),
+            }
+            image_bytes = build_character_image(
                 character_items,
-                title="TOP 10 CHARACTERS OF THE WEEK",
+                week=character_week,
+                source_url="https://www.anitrendz.com/charts/male-characters",
             )
             send_message(content, image_bytes=image_bytes, filename="anivo-top-characters-week.png")
         print("[DONE] Sent weekly Anime Trending report.")
@@ -77,7 +101,11 @@ def main():
             print("No anime schedule was available.")
             return
         heading = f"**جدول صدور الأنمي - {day}**" if day else "**جدول صدور الأنمي أسبوعياً**"
-        image_bytes = build_schedule_image(schedule)
+        image_bytes = build_schedule_image(
+            schedule,
+            week=current_week_data(),
+            today=time.strftime("%A"),
+        )
         send_message(
             f"{heading}\n\n{SIGNATURE}",
             image_bytes=image_bytes,

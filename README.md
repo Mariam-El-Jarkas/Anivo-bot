@@ -177,9 +177,9 @@ Anime Trending rankings are fetched directly from the public chart pages:
 - Male characters: `https://www.anitrendz.com/charts/male-characters`
 - Female characters: `https://www.anitrendz.com/charts/female-characters`
 
-Weekly anime and character reports send a generated ranking poster with an Arabic title and ANIVO signature above it; titles and positions are shown on the image instead of repeated in the message text. The anime chart is a ranking of anime series, not individual episode ratings.
+Weekly anime and character reports use ANIVO's Arabic poster layouts: week/season header, chart period, Anime Trending ranks, artwork, and ranking details. The Discord message contains only the short Arabic title and ANIVO signature, followed by the image. Character ranking positions stay within Anime Trending's separate male and female charts. The anime chart ranks series, not individual episode ratings.
 
-The weekly anime schedule is sent as an Arabic day-by-day graphic, without times. WitAnime releases are detected from its public episode sitemap every 30 minutes. `ANIVO_RETENTION_DAYS` defaults to 7, and old seen-post IDs are pruned automatically.
+The weekly anime schedule is sent in the matching Arabic day-by-day poster layout, without airing times. WitAnime releases are detected from its public episode sitemap every 30 minutes. `ANIVO_RETENTION_DAYS` defaults to 7, and old seen-post IDs are pruned automatically.
 
 ## 📌 Content Guidelines
 

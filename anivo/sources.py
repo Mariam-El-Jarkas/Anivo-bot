@@ -268,6 +268,13 @@ def fetch_anitrendz_chart(chart="top-anime", limit=10):
             "image_url": (choice.get("images") or {}).get("full")
             or (choice.get("images") or {}).get("large")
             or (choice.get("images") or {}).get("small"),
+            "votes": choice.get("total"),
+            "previous_position": choice.get("previously"),
+            "weeks": choice.get("weeksAtTopTen"),
+            "week_no": charts[0].get("week"),
+            "season": charts[0].get("season"),
+            "chart_date": charts[0].get("date"),
+            "chart_votes": charts[0].get("votes"),
         }
         for choice in ranked[:limit]
         if choice.get("name") or choice.get("nameAlt")
