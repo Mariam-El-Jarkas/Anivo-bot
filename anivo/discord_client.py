@@ -19,7 +19,7 @@ def _headers():
     }
 
 
-def send_dm(recipient_id, content, image_url=None):
+def send_dm(recipient_id, content, image_url=None, image_bytes=None, filename="anivo.png"):
     headers = _headers()
     dm = requests.post(
         f"{API}/users/@me/channels",
@@ -34,18 +34,30 @@ def send_dm(recipient_id, content, image_url=None):
             f"{dm.status_code} {detail}"
         )
     payload = {"content": content[:2000]}
-    if image_url:
-        payload["embeds"] = [{"image": {"url": image_url}}]
-    sent = requests.post(
-        f"{API}/channels/{dm.json()['id']}/messages",
-        headers=headers,
-        json=payload,
-        timeout=25,
-    )
+    if image_bytes:
+        payload["embeds"] = [{"image": {"url": f"attachment://{filename}"}}]
+        multipart_headers = dict(headers)
+        multipart_headers.pop("Content-Type", None)
+        sent = requests.post(
+            f"{API}/channels/{dm.json()['id']}/messages",
+            headers=multipart_headers,
+            data={"payload_json": __import__("json").dumps(payload)},
+            files={"files[0]": (filename, image_bytes, "image/png")},
+            timeout=25,
+        )
+    else:
+        if image_url:
+            payload["embeds"] = [{"image": {"url": image_url}}]
+        sent = requests.post(
+            f"{API}/channels/{dm.json()['id']}/messages",
+            headers=headers,
+            json=payload,
+            timeout=25,
+        )
     sent.raise_for_status()
 
 
-def send_message(content, image_url=None, recipient_ids_override=None):
+def send_message(content, image_url=None, recipient_ids_override=None, image_bytes=None, filename="anivo.png"):
     ids = recipient_ids_override or recipient_ids()
     if not ids:
         raise RuntimeError(
@@ -53,7 +65,7 @@ def send_message(content, image_url=None, recipient_ids_override=None):
             "Set DISCORD_USER_IDS to numeric Discord user IDs."
         )
     for recipient_id in ids:
-        send_dm(recipient_id, content, image_url)
+        send_dm(recipient_id, content, image_url, image_bytes, filename)
 
 
 def bold(text):

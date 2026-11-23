@@ -7,6 +7,7 @@ from anivo.state import load, save
 from anivo.rewriter import rewrite
 from anivo.discord_client import send_news
 from anivo.discord_client import send_message, bold, SIGNATURE
+from anivo.ranking_image import build_ranking_image
 from anivo.sources import (
     fetch_anitrendz_chart,
     fetch_anime_schedule,
@@ -24,26 +25,39 @@ def main():
         if anime_items:
             lines = [f"{item['position']}. {item['name']}" for item in anime_items]
             content = bold(
-                "أفضل 10 أنميات أسبوعية من Anime Trending\n\n"
-                + "\n".join(lines)
-                + "\n\nhttps://www.anitrendz.com/charts/top-anime\n\n"
+                "**أفضل 10 أنميات أسبوعية من Anime Trending**\n\n"
+                + "\n".join(f"**{line}**" for line in lines)
+                + "\n\n**المصدر الرسمي:** https://www.anitrendz.com/charts/top-anime\n\n"
                 + SIGNATURE
             )
-            send_message(content, anime_items[0].get("image_url"))
+            image_bytes = build_ranking_image(
+                anime_items,
+                title="TOP 10 ANIME OF THE WEEK",
+                source_url="https://www.anitrendz.com/charts/top-anime",
+            )
+            send_message(content, image_bytes=image_bytes, filename="anivo-top-anime-week.png")
 
         male = fetch_anitrendz_chart("male-characters", 5)
         female = fetch_anitrendz_chart("female-characters", 5)
         character_items = male + female
         if character_items:
+            character_items = [
+                {**item, "position": index}
+                for index, item in enumerate(character_items, 1)
+            ]
             lines = [f"{item['position']}. {item['name']}" for item in character_items]
             content = bold(
-                "أفضل 10 شخصيات أسبوعية من Anime Trending\n\n"
-                + "\n".join(lines)
-                + "\n\nhttps://www.anitrendz.com/charts/male-characters\n"
+                "**أفضل 10 شخصيات أسبوعية من Anime Trending**\n\n"
+                + "\n".join(f"**{line}**" for line in lines)
+                + "\n\n**المصدر الرسمي:**\nhttps://www.anitrendz.com/charts/male-characters\n"
                 + "https://www.anitrendz.com/charts/female-characters\n\n"
                 + SIGNATURE
             )
-            send_message(content)
+            image_bytes = build_ranking_image(
+                character_items,
+                title="TOP 10 CHARACTERS OF THE WEEK",
+            )
+            send_message(content, image_bytes=image_bytes, filename="anivo-top-characters-week.png")
         print("[DONE] Sent weekly Anime Trending report.")
         return
 
