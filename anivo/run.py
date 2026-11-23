@@ -7,7 +7,7 @@ from anivo.state import load, save
 from anivo.rewriter import rewrite
 from anivo.discord_client import send_news
 from anivo.discord_client import send_message, bold, SIGNATURE
-from anivo.ranking_image import build_ranking_image
+from anivo.ranking_image import build_ranking_image, build_schedule_image
 from anivo.sources import (
     fetch_anitrendz_chart,
     fetch_anime_schedule,
@@ -23,13 +23,7 @@ def main():
     if "--weekly" in sys.argv:
         anime_items = fetch_anitrendz_chart("top-anime", 10)
         if anime_items:
-            lines = [f"{item['position']}. {item['name']}" for item in anime_items]
-            content = bold(
-                "**أفضل 10 أنميات أسبوعية من Anime Trending**\n\n"
-                + "\n".join(f"**{line}**" for line in lines)
-                + "\n\n**المصدر الرسمي:** https://www.anitrendz.com/charts/top-anime\n\n"
-                + SIGNATURE
-            )
+            content = f"**أفضل 10 أنميات أسبوعية من Anime Trending**\n\n{SIGNATURE}"
             image_bytes = build_ranking_image(
                 anime_items,
                 title="TOP 10 ANIME OF THE WEEK",
@@ -45,14 +39,7 @@ def main():
                 {**item, "position": index}
                 for index, item in enumerate(character_items, 1)
             ]
-            lines = [f"{item['position']}. {item['name']}" for item in character_items]
-            content = bold(
-                "**أفضل 10 شخصيات أسبوعية من Anime Trending**\n\n"
-                + "\n".join(f"**{line}**" for line in lines)
-                + "\n\n**المصدر الرسمي:**\nhttps://www.anitrendz.com/charts/male-characters\n"
-                + "https://www.anitrendz.com/charts/female-characters\n\n"
-                + SIGNATURE
-            )
+            content = f"**أفضل 10 شخصيات أسبوعية من Anime Trending**\n\n{SIGNATURE}"
             image_bytes = build_ranking_image(
                 character_items,
                 title="TOP 10 CHARACTERS OF THE WEEK",
@@ -89,13 +76,13 @@ def main():
         if not schedule:
             print("No anime schedule was available.")
             return
-        lines = [
-            f"- **{item['title']}** - {item['day'] or 'Unknown'}"
-            + (f" {item['time']} {item['timezone']}" if item["time"] else "")
-            for item in schedule[:30]
-        ]
-        heading = f"جدول صدور الأنمي{f' - {day}' if day else ' أسبوعياً'}"
-        send_message(bold(f"{heading}\n\n" + "\n".join(lines) + f"\n\n{SIGNATURE}"))
+        heading = f"**جدول صدور الأنمي - {day}**" if day else "**جدول صدور الأنمي أسبوعياً**"
+        image_bytes = build_schedule_image(schedule)
+        send_message(
+            f"{heading}\n\n{SIGNATURE}",
+            image_bytes=image_bytes,
+            filename="anivo-anime-weekly-schedule.png",
+        )
         print("[DONE] Sent anime release schedule.")
         return
 

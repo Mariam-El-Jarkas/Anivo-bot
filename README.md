@@ -177,7 +177,9 @@ Anime Trending rankings are fetched directly from the public chart pages:
 - Male characters: `https://www.anitrendz.com/charts/male-characters`
 - Female characters: `https://www.anitrendz.com/charts/female-characters`
 
-WitAnime releases are detected from its public episode sitemap every 30 minutes. The schedule is fetched directly from WitAnime's public schedule page, with Jikan as a fallback. `ANIVO_RETENTION_DAYS` defaults to 7, and old seen-post IDs are pruned automatically.
+Weekly anime and character reports send a generated ranking poster with an Arabic title and ANIVO signature above it; titles and positions are shown on the image instead of repeated in the message text. The anime chart is a ranking of anime series, not individual episode ratings.
+
+The weekly anime schedule is sent as an Arabic day-by-day graphic, without times. WitAnime releases are detected from its public episode sitemap every 30 minutes. `ANIVO_RETENTION_DAYS` defaults to 7, and old seen-post IDs are pruned automatically.
 
 ## 📌 Content Guidelines
 
