@@ -169,11 +169,11 @@ def _header(image, draw, title, week):
         title_font = _font(title_font.size - 2, True)
     draw.text((right, y + 69), _rtl(title), font=title_font, fill="white", anchor="ra")
     draw.text(
-        (right, y + 137),
+        (badge[2] + 28, y + 137),
         f"Period: {week['range']}",
         font=_font(23),
         fill="#FFF6FB",
-        anchor="ra",
+        anchor="la",
     )
 
 
