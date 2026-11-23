@@ -6,6 +6,7 @@ import calendar
 import re
 import json
 import html
+import time
 from datetime import datetime, timezone, timedelta
 from xml.etree import ElementTree
 
@@ -107,19 +108,26 @@ def fetch_anime_schedule(day=None):
     except requests.RequestException as exc:
         print(f"[WARN] WitAnime schedule unavailable: {exc}")
 
-    try:
-        params = {"filter": "tv"} if day is None else {"filter": "tv"}
-        response = requests.get(
-            "https://api.jikan.moe/v4/schedules",
-            params=params,
-            headers={"User-Agent": "ANIVO/0.4"},
-            timeout=25,
-        )
-        response.raise_for_status()
-        data = response.json().get("data", [])
-    except requests.RequestException as exc:
-        print(f"[WARN] Jikan schedule unavailable: {exc}")
-        return []
+    for attempt in range(2):
+        try:
+            response = requests.get(
+                "https://api.jikan.moe/v4/schedules",
+                params={"filter": "tv"},
+                headers={"User-Agent": "ANIVO/0.4"},
+                timeout=25,
+            )
+            response.raise_for_status()
+            data = response.json().get("data", [])
+            break
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            if attempt == 1:
+                print(f"[WARN] Jikan schedule unavailable after retry: {exc}")
+                return []
+            print(f"[WARN] Jikan schedule request failed; retrying once: {exc}")
+            time.sleep(2)
+        except requests.RequestException as exc:
+            print(f"[WARN] Jikan schedule unavailable: {exc}")
+            return []
     if day:
         day = day.lower()
         data = [item for item in data if (item.get("broadcast", {}).get("day") or "").lower() == day]

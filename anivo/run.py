@@ -98,8 +98,10 @@ def main():
             day = sys.argv[sys.argv.index("--schedule") + 1]
         schedule = fetch_anime_schedule(day)
         if not schedule:
-            print("No anime schedule was available.")
-            return
+            raise RuntimeError(
+                "No anime schedule data was available from WitAnime or Jikan; "
+                "see the source warnings above."
+            )
         heading = f"**جدول صدور الأنمي - {day}**" if day else "**جدول صدور الأنمي أسبوعياً**"
         image_bytes = build_schedule_image(
             schedule,
