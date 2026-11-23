@@ -1,4 +1,3 @@
-
 name: ANIVO - Scheduled source check
 
 on:
@@ -7,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: anivo-news-check
+  group: anivo-database
   cancel-in-progress: false
 
 permissions:
@@ -32,71 +31,23 @@ jobs:
       - name: Run ANIVO
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          DISCORD_USER_IDS: ${{ secrets.DISCORD_USER_IDS }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
+          ANIME_TRENDING_FEED: ${{ secrets.ANIME_TRENDING_FEED }}
+          ANIVO_RETENTION_DAYS: "7"
         run: python -m anivo.run
 
-      - name: Save ANIVO memory safely
+      - name: Save ANIVO SQLite memory
         run: |
-          # Preserve the memory produced by this run
-          cp data/seen_posts.json /tmp/anivo-seen-local.json
-
-          # Get the latest version from GitHub
+          cp data/anivo.db /tmp/anivo-local.db
           git fetch origin main:refs/remotes/origin/main
-
-          # Start from the latest remote version
           git reset --hard origin/main
-
-          # Merge both memory lists without losing entries
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          local_path = Path("/tmp/anivo-seen-local.json")
-          remote_path = Path("data/seen_posts.json")
-
-          def load(path):
-              if not path.exists():
-                  return {"initialized": False, "seen": []}
-              try:
-                  return json.loads(path.read_text(encoding="utf-8"))
-              except Exception:
-                  return {"initialized": False, "seen": []}
-
-          local = load(local_path)
-          remote = load(remote_path)
-
-          merged = list(dict.fromkeys(
-              remote.get("seen", []) + local.get("seen", [])
-          ))[-2000:]
-
-          result = {
-              "initialized": (
-                  bool(remote.get("initialized"))
-                  or bool(local.get("initialized"))
-              ),
-              "seen": merged
-          }
-
-          remote_path.parent.mkdir(parents=True, exist_ok=True)
-          remote_path.write_text(
-              json.dumps(result, ensure_ascii=False, indent=2),
-              encoding="utf-8"
-          )
-
-          print(f"[MEMORY] Saved {len(merged)} unique posts.")
-          PY
-
-          # Commit and push the merged memory
+          cp /tmp/anivo-local.db data/anivo.db
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -f data/seen_posts.json
-
+          git add -f data/anivo.db
           if ! git diff --cached --quiet; then
-            git commit -m "Update ANIVO seen posts"
+            git commit -m "Update ANIVO SQLite memory"
             git push origin HEAD:main
-          else
-            echo "No changes to save."
           fi

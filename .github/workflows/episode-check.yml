@@ -1,0 +1,43 @@
+name: ANIVO - Check WitAnime episodes
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: anivo-database
+  cancel-in-progress: false
+
+jobs:
+  episodes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Check recent episodes
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_USER_IDS: ${{ secrets.DISCORD_USER_IDS }}
+          WITANIME_BASE: "https://witanime.site"
+        run: python -m anivo.run --episodes
+
+      - name: Save ANIVO SQLite memory
+        run: |
+          cp data/anivo.db /tmp/anivo-local.db
+          git fetch origin main:refs/remotes/origin/main
+          git reset --hard origin/main
+          cp /tmp/anivo-local.db data/anivo.db
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/anivo.db
+          if ! git diff --cached --quiet; then
+            git commit -m "Update ANIVO episode memory"
+            git push origin HEAD:main
+          fi

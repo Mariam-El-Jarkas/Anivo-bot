@@ -1,9 +1,20 @@
 import os, requests
+from anivo.youtube import find_official_trailer
 
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 
 def rewrite(item):
+    title = item.get("title", "")
+    summary = item.get("summary", "")
+    combined = f"{title}\n{summary}"
+    official_link = None
+    if any(marker in combined.lower() for marker in ("trailer", "عرض دعائي", "اعلان", "إعلان", "teaser")):
+        try:
+            official_link = find_official_trailer(title or summary)
+        except Exception:
+            official_link = None
+
     prompt = (
         "أنت محرر أخبار أنمي لقناة ANIVO. أعد صياغة الخبر باللغة العربية الفصحى بأسلوب صحفي طبيعي، لا ترجمة حرفية.\n"
         "أبقِ أسماء الأنمي والشخصيات والأعمال والعناوين الرسمية باللغة الإنجليزية. "
@@ -27,4 +38,6 @@ def rewrite(item):
     text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
     if not text or "NEEDS_REVIEW" in text:
         raise ValueError("Insufficient source information; skipped.")
+    if official_link:
+        return f"News link ANIVO\n\n{text}\n\n{official_link}"
     return text

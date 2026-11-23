@@ -75,7 +75,7 @@ Sources are configured in `anivo/sources.py`.
 | Google Gemini API | Arabic news rewriting |
 | Discord API | Private news notifications |
 | GitHub Actions | Scheduled automation |
-| JSON | Persistent processed-post history |
+| SQLite | Persistent seen-post history and cache |
 
 ## 📁 Project Structure
 
@@ -95,7 +95,7 @@ Anivo-bot/
 │   └── run.py
 │
 ├── data/
-│   └── seen_posts.json
+│   └── anivo.db
 │
 ├── requirements.txt
 ├── .gitignore
@@ -122,7 +122,7 @@ ANIVO runs through GitHub Actions.
 | News window | Rolling 24 hours |
 | Maximum posts per run | 5 eligible unseen posts |
 | Notifications | Private Discord DM |
-| State storage | `data/seen_posts.json` |
+| State storage | `data/anivo.db` (SQLite) |
 
 The workflow is designed to run automatically in GitHub's hosted environment. No local machine needs to remain online.
 
@@ -142,10 +142,42 @@ Configure the required secrets under:
 |---|---|
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `DISCORD_BOT_TOKEN` | Discord bot authentication token |
-| `DISCORD_USER_ID` | Discord user ID receiving notifications |
+| `DISCORD_USER_IDS` | Comma/space-separated Discord recipient IDs |
+| `DISCORD_USER_ID` | Legacy fallback for a single Discord recipient |
 | `EXTRA_FEEDS` | Optional additional RSS feeds, if supported by the current configuration |
 
 Never commit API keys, bot tokens, or other credentials to the repository.
+
+### Discord recipients and manual rechecks
+
+Set `DISCORD_USER_IDS` to a space-separated or comma-separated list of recipient IDs. It supports the existing `DISCORD_USER_ID` secret as a fallback.
+
+For the supplied friend ID, use:
+
+```text
+DISCORD_USER_IDS=<your-user-id>,1574342548288307261
+```
+
+No always-on Discord bot or external host is required. GitHub Actions runs:
+
+- Every 15 minutes: source news checks
+- Every 30 minutes: recent WitAnime episode checks
+- Sunday at 10:00 UTC: Anime Trending weekly report
+- Sunday at 09:00 UTC: full anime schedule
+
+You can recheck immediately from GitHub:
+
+1. Open **Actions**.
+2. Choose **ANIVO - Weekly Anime Trending report**, **ANIVO - Check WitAnime episodes**, or **ANIVO - Anime schedule**.
+3. Select **Run workflow**.
+
+Anime Trending rankings are fetched directly from the public chart pages:
+
+- Top anime: `https://www.anitrendz.com/charts/top-anime`
+- Male characters: `https://www.anitrendz.com/charts/male-characters`
+- Female characters: `https://www.anitrendz.com/charts/female-characters`
+
+WitAnime releases are detected from its public episode sitemap every 30 minutes. The schedule is fetched directly from WitAnime's public schedule page, with Jikan as a fallback. `ANIVO_RETENTION_DAYS` defaults to 7, and old seen-post IDs are pruned automatically.
 
 ## 📌 Content Guidelines
 

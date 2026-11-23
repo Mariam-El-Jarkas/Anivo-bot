@@ -1,16 +1,87 @@
 
 import time
+import sys
 
 from anivo.sources import fetch_all
 from anivo.state import load, save
 from anivo.rewriter import rewrite
 from anivo.discord_client import send_news
+from anivo.discord_client import send_message, bold, SIGNATURE
+from anivo.sources import (
+    fetch_anitrendz_chart,
+    fetch_anime_schedule,
+    fetch_recent_witanime_episodes,
+)
+from anivo.state import get_cache, set_cache
 
 MAX_AGE_SECONDS = 24 * 60 * 60
 FUTURE_TOLERANCE_SECONDS = 300
 
 
 def main():
+    if "--weekly" in sys.argv:
+        anime_items = fetch_anitrendz_chart("top-anime", 10)
+        if anime_items:
+            lines = [f"{item['position']}. {item['name']}" for item in anime_items]
+            content = bold(
+                "أفضل 10 أنميات أسبوعية من Anime Trending\n\n"
+                + "\n".join(lines)
+                + "\n\nhttps://www.anitrendz.com/charts/top-anime\n\n"
+                + SIGNATURE
+            )
+            send_message(content, anime_items[0].get("image_url"))
+
+        male = fetch_anitrendz_chart("male-characters", 5)
+        female = fetch_anitrendz_chart("female-characters", 5)
+        character_items = male + female
+        if character_items:
+            lines = [f"{item['position']}. {item['name']}" for item in character_items]
+            content = bold(
+                "أفضل 10 شخصيات أسبوعية من Anime Trending\n\n"
+                + "\n".join(lines)
+                + "\n\nhttps://www.anitrendz.com/charts/male-characters\n"
+                + "https://www.anitrendz.com/charts/female-characters\n\n"
+                + SIGNATURE
+            )
+            send_message(content)
+        print("[DONE] Sent weekly Anime Trending report.")
+        return
+
+    if "--episodes" in sys.argv:
+        items = fetch_recent_witanime_episodes(24)
+        sent_count = 0
+        for item in items:
+            cache_key = f"witanime:{item['url']}"
+            if get_cache(cache_key):
+                continue
+            content = bold(
+                f"Anime {item['anime']} ep {item['episode']} is out.\n"
+                f"{item['url']}\n\n{SIGNATURE}"
+            )
+            send_message(content)
+            set_cache(cache_key, {"sent": True})
+            sent_count += 1
+        print(f"[DONE] Sent {sent_count} recent WitAnime episodes.")
+        return
+
+    if "--schedule" in sys.argv:
+        day = None
+        if len(sys.argv) >= 3:
+            day = sys.argv[sys.argv.index("--schedule") + 1]
+        schedule = fetch_anime_schedule(day)
+        if not schedule:
+            print("No anime schedule was available.")
+            return
+        lines = [
+            f"- **{item['title']}** - {item['day'] or 'Unknown'}"
+            + (f" {item['time']} {item['timezone']}" if item["time"] else "")
+            for item in schedule[:30]
+        ]
+        heading = f"جدول صدور الأنمي{f' - {day}' if day else ' أسبوعياً'}"
+        send_message(bold(f"{heading}\n\n" + "\n".join(lines) + f"\n\n{SIGNATURE}"))
+        print("[DONE] Sent anime release schedule.")
+        return
+
     state = load()
     items = fetch_all()
 
