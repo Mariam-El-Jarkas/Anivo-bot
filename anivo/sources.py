@@ -108,6 +108,7 @@ def fetch_anime_schedule(day=None):
     except requests.RequestException as exc:
         print(f"[WARN] WitAnime schedule unavailable: {exc}")
 
+    data = []
     for attempt in range(2):
         try:
             response = requests.get(
@@ -117,17 +118,15 @@ def fetch_anime_schedule(day=None):
                 timeout=25,
             )
             response.raise_for_status()
-            data = response.json().get("data", [])
+            data = response.json().get("data", []) or []
             break
-        except (requests.ConnectionError, requests.Timeout) as exc:
-            if attempt == 1:
-                print(f"[WARN] Jikan schedule unavailable after retry: {exc}")
-                return []
-            print(f"[WARN] Jikan schedule request failed; retrying once: {exc}")
-            time.sleep(2)
         except requests.RequestException as exc:
+            if attempt == 0 and isinstance(exc, (requests.ConnectionError, requests.Timeout)):
+                print(f"[WARN] Jikan schedule request failed; retrying once: {exc}")
+                time.sleep(2)
+                continue
             print(f"[WARN] Jikan schedule unavailable: {exc}")
-            return []
+            break
     if day:
         day = day.lower()
         data = [item for item in data if (item.get("broadcast", {}).get("day") or "").lower() == day]
@@ -143,6 +142,87 @@ def fetch_anime_schedule(day=None):
             "timezone": broadcast.get("timezone"),
             "url": item.get("url"),
         })
+    if schedule:
+        return schedule
+
+    try:
+        schedule = fetch_anilist_schedule(day)
+    except (requests.RequestException, ValueError) as exc:
+        print(f"[WARN] AniList schedule unavailable: {exc}")
+        return []
+    if not schedule:
+        print("[WARN] AniList returned no upcoming airing entries.")
+    return schedule
+
+
+def fetch_anilist_schedule(day=None):
+    query = """
+    query ($page: Int!, $startTime: Int!, $endTime: Int!) {
+      Page(page: $page, perPage: 50) {
+        airingSchedules(
+          airingAt_greater: $startTime
+          airingAt_lesser: $endTime
+          sort: TIME
+        ) {
+          airingAt
+          episode
+          media {
+            title { english romaji }
+            siteUrl
+          }
+        }
+      }
+    }
+    """
+    now = int(datetime.now(timezone.utc).timestamp())
+    end = now + 7 * 24 * 60 * 60
+    wanted_day = day.lower() if day else None
+    schedule = []
+
+    for page in (1, 2):
+        response = requests.post(
+            "https://graphql.anilist.co",
+            json={
+                "query": query,
+                "variables": {"page": page, "startTime": now, "endTime": end},
+            },
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "ANIVO/0.4",
+            },
+            timeout=25,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        errors = payload.get("errors")
+        if errors:
+            messages = "; ".join(error.get("message", "Unknown GraphQL error") for error in errors)
+            raise ValueError(f"AniList GraphQL error: {messages}")
+
+        entries = payload.get("data", {}).get("Page", {}).get("airingSchedules", [])
+        for entry in entries:
+            media = entry.get("media") or {}
+            titles = media.get("title") or {}
+            title = titles.get("english") or titles.get("romaji")
+            if not title:
+                continue
+
+            airing_at = datetime.fromtimestamp(entry["airingAt"], timezone.utc)
+            airing_day = airing_at.strftime("%A")
+            if wanted_day and airing_day.lower() != wanted_day:
+                continue
+            schedule.append({
+                "title": title,
+                "day": airing_day,
+                "time": f"{airing_at:%H:%M} UTC",
+                "timezone": "UTC",
+                "episode": entry.get("episode"),
+                "url": media.get("siteUrl"),
+            })
+
+        if len(entries) < 50:
+            break
     return schedule
 
 
