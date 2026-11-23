@@ -169,11 +169,11 @@ def _header(image, draw, title, week):
         title_font = _font(title_font.size - 2, True)
     draw.text((right, y + 69), _rtl(title), font=title_font, fill="white", anchor="ra")
     draw.text(
-        (badge[2] + 28, y + 137),
+        (right, y + 137),
         f"Period: {week['range']}",
         font=_font(23),
         fill="#FFF6FB",
-        anchor="la",
+        anchor="ra",
     )
 
 
@@ -269,7 +269,7 @@ def build_ranking_image(items, title="Top 10 Anime This Week", source_url=None, 
 
     if source_url:
         source_y = height - 32
-        draw.text((width // 2, source_y), "Source: Anime Trending", font=_font(17), fill=COLORS["purple"], anchor="mm")
+        draw.text((width - margin, source_y), "Source: Anime Trending", font=_font(17), fill=COLORS["purple"], anchor="ra")
 
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
@@ -374,11 +374,11 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
         items = grouped[day]
         count_text = f"{_english_number(len(items))} anime"
         draw.text(
-            (margin + 18, y + day_header_height // 2),
+            (margin + content_width - 190, y + day_header_height // 2),
             count_text,
             font=_font(20, True),
             fill="white",
-            anchor="lm",
+            anchor="rm",
         )
 
         right_x = margin + inner_padding + column_width + column_gap
