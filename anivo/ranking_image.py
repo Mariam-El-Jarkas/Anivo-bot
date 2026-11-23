@@ -154,7 +154,6 @@ def _header(image, draw, title, week):
         (width, height), COLORS["deep"], COLORS["pink"], 36
     )
     image.paste(gradient, (x, y), mask)
-    draw.ellipse((x + width - 248, y + 4, x + width - 4, y + 198), fill="#86509B")
     badge = (x + width - 210, y + 34, x + width - 42, y + 166)
     draw.rounded_rectangle(badge, radius=26, fill=COLORS["paper"])
     center_x = (badge[0] + badge[2]) // 2
