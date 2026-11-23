@@ -17,26 +17,17 @@ COLORS = {
     "paper": "#FDF8F8",
     "white": "#FFFFFF",
 }
-ARABIC_DAYS = {
-    "Saturday": "السبت",
-    "Sunday": "الأحد",
-    "Monday": "الاثنين",
-    "Tuesday": "الثلاثاء",
-    "Wednesday": "الأربعاء",
-    "Thursday": "الخميس",
-    "Friday": "الجمعة",
+ENGLISH_MONTHS = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December",
 }
-ARABIC_MONTHS = {
-    1: "يناير", 2: "فبراير", 3: "مارس", 4: "أبريل",
-    5: "مايو", 6: "يونيو", 7: "يوليو", 8: "أغسطس",
-    9: "سبتمبر", 10: "أكتوبر", 11: "نوفمبر", 12: "ديسمبر",
-}
-ARABIC_SEASONS = {
-    "winter": "الشتاء",
-    "spring": "الربيع",
-    "summer": "الصيف",
-    "fall": "الخريف",
-    "autumn": "الخريف",
+ENGLISH_SEASONS = {
+    "winter": "Winter",
+    "spring": "Spring",
+    "summer": "Summer",
+    "fall": "Fall",
+    "autumn": "Fall",
 }
 
 
@@ -58,28 +49,26 @@ def _rtl(text):
     return get_display(arabic_reshaper.reshape(str(text)), base_dir="R")
 
 
-def _arabic_number(value):
-    return str(value).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+def _english_number(value):
+    return str(value).translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789"))
 
 
-def _date_ar(value):
+def _date_en(value):
     parsed = date.fromisoformat(value) if isinstance(value, str) else value
-    return f"{_arabic_number(parsed.day)} {ARABIC_MONTHS[parsed.month]} {_arabic_number(parsed.year)}"
+    return f"{ENGLISH_MONTHS[parsed.month]} {parsed.day}, {parsed.year}"
 
 
 def _date_range(start, end):
     if start.year == end.year and start.month == end.month:
         return (
-            f"{_arabic_number(start.day)} – {_arabic_number(end.day)} "
-            f"{ARABIC_MONTHS[end.month]} {_arabic_number(end.year)}"
+            f"{ENGLISH_MONTHS[end.month]} {start.day}–{end.day}, {end.year}"
         )
     if start.year == end.year:
         return (
-            f"{_arabic_number(start.day)} {ARABIC_MONTHS[start.month]} – "
-            f"{_arabic_number(end.day)} {ARABIC_MONTHS[end.month]} "
-            f"{_arabic_number(end.year)}"
+            f"{ENGLISH_MONTHS[start.month]} {start.day} – "
+            f"{ENGLISH_MONTHS[end.month]} {end.day}, {end.year}"
         )
-    return f"{_date_ar(start)} – {_date_ar(end)}"
+    return f"{_date_en(start)} – {_date_en(end)}"
 
 
 def _week_data(week=None):
@@ -90,9 +79,9 @@ def _week_data(week=None):
         start = end - timedelta(days=6)
         season = week.get("season", "")
         year = end.year
-        season_name = ARABIC_SEASONS.get(str(season).lower(), str(season))
+        season_name = ENGLISH_SEASONS.get(str(season).lower(), str(season))
         if season_name and str(year) not in season_name:
-            season_name = f"{season_name} {_arabic_number(year)}"
+            season_name = f"{season_name} {year}"
         return {
             "no": week.get("no") or end.isocalendar().week,
             "range": _date_range(start, end),
@@ -110,9 +99,9 @@ def _week_data(week=None):
             "summer" if today.month in (6, 7, 8) else
             "fall"
         )
-    season_name = ARABIC_SEASONS.get(str(season).lower(), str(season))
+    season_name = ENGLISH_SEASONS.get(str(season).lower(), str(season))
     if str(today.year) not in season_name:
-        season_name = f"{season_name} {_arabic_number(today.year)}"
+        season_name = f"{season_name} {today.year}"
     return {
         "no": week.get("no") or today.isocalendar().week,
         "range": _date_range(start, end),
@@ -169,22 +158,23 @@ def _header(image, draw, title, week):
     badge = (x + 42, y + 34, x + 210, y + 166)
     draw.rounded_rectangle(badge, radius=26, fill=COLORS["paper"])
     center_x = (badge[0] + badge[2]) // 2
-    draw.text((center_x, y + 48), _rtl("الأسبوع"), font=_font(22, True), fill=COLORS["deep"], anchor="mt")
-    draw.text((center_x, y + 75), _arabic_number(week["no"]), font=_font(58, True), fill=COLORS["deep"], anchor="mt")
+    draw.text((center_x, y + 48), "WEEK", font=_font(22, True), fill=COLORS["deep"], anchor="mt")
+    draw.text((center_x, y + 75), _english_number(week["no"]), font=_font(58, True), fill=COLORS["deep"], anchor="mt")
     draw.text((center_x, y + 137), _rtl(week.get("season", "")), font=_font(17, True), fill=COLORS["purple"], anchor="mt")
 
     right = x + width - 42
-    draw.text((right, y + 28), _rtl("أنيفو · ANIVO"), font=_font(24, True), fill="white", anchor="ra")
+    draw.text((right, y + 28), "ANIVO", font=_font(24, True), fill="white", anchor="ra")
     title_font = _font(48, True)
     while title_font.size > 30 and draw.textbbox((0, 0), _rtl(title), font=title_font)[2] > 660:
         title_font = _font(title_font.size - 2, True)
     draw.text((right, y + 69), _rtl(title), font=title_font, fill="white", anchor="ra")
-    period_font = _font(23)
-    period_label = _rtl("الفترة:")
-    period_range = _rtl(week["range"])
-    draw.text((right, y + 137), period_label, font=period_font, fill="#FFF6FB", anchor="ra")
-    range_right = right - draw.textlength(period_label, font=period_font) - 12
-    draw.text((range_right, y + 137), period_range, font=period_font, fill="#FFF6FB", anchor="ra")
+    draw.text(
+        (right, y + 137),
+        f"Period: {week['range']}",
+        font=_font(23),
+        fill="#FFF6FB",
+        anchor="ra",
+    )
 
 
 def _background(width, height):
@@ -222,7 +212,7 @@ def _fit_text(draw, text, font, max_width):
     return text.rstrip() + "…"
 
 
-def build_ranking_image(items, title="أفضل ١٠ أنميات الأسبوع", source_url=None, week=None):
+def build_ranking_image(items, title="Top 10 Anime This Week", source_url=None, week=None):
     items = items[:10]
     width, margin, header_height = 1080, 40, 200
     row_height, row_gap = 118, 14
@@ -252,7 +242,7 @@ def build_ranking_image(items, title="أفضل ١٠ أنميات الأسبوع"
         )
         draw.text(
             (margin + row_width - 56, row_y + row_height // 2),
-            _arabic_number(index + 1),
+            _english_number(index + 1),
             font=_font(54, True),
             fill="white",
             anchor="mm",
@@ -279,7 +269,7 @@ def build_ranking_image(items, title="أفضل ١٠ أنميات الأسبوع"
 
     if source_url:
         source_y = height - 32
-        draw.text((width // 2, source_y), _rtl("المصدر: Anime Trending"), font=_font(17), fill=COLORS["purple"], anchor="mm")
+        draw.text((width // 2, source_y), "Source: Anime Trending", font=_font(17), fill=COLORS["purple"], anchor="mm")
 
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
@@ -295,7 +285,7 @@ def build_character_image(items, week=None, source_url=None):
     height = margin * 2 + header_height + 20 + rows * card_height + max(0, rows - 1) * gap + 20
     image = _background(width, height)
     draw = ImageDraw.Draw(image)
-    _header(image, draw, "أفضل الشخصيات هذا الأسبوع", _week_data(week))
+    _header(image, draw, "Top Characters This Week", _week_data(week))
 
     start_y = margin + header_height + 20
     for index, item in enumerate(items):
@@ -312,7 +302,7 @@ def build_character_image(items, week=None, source_url=None):
         draw.rounded_rectangle((x + card_width - 78, y + 14, x + card_width - 14, y + 78), radius=32, fill=COLORS["deep"])
         draw.text(
             (x + card_width - 46, y + 46),
-            _arabic_number(item.get("position", index + 1)),
+            _english_number(item.get("position", index + 1)),
             font=_font(35, True),
             fill="white",
             anchor="mm",
@@ -331,7 +321,7 @@ def build_character_image(items, week=None, source_url=None):
 
 
 def build_schedule_image(schedule, week=None, today=None, source_url=None):
-    day_order = list(ARABIC_DAYS)
+    day_order = ("Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
     grouped = {day: [] for day in day_order}
     for item in schedule:
         day = item.get("day")
@@ -353,7 +343,7 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
     height += max(0, len(active_days) - 1) * row_gap + 20
     image = _background(width, height)
     draw = ImageDraw.Draw(image)
-    _header(image, draw, "جدول الأنمي الأسبوعي", _week_data(week))
+    _header(image, draw, "Weekly Anime Schedule", _week_data(week))
 
     y = margin + header_height + 20
     title_font = _font(22, True)
@@ -376,13 +366,13 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
         )
         draw.text(
             (margin + content_width - 18, y + day_header_height // 2),
-            _rtl(ARABIC_DAYS[day]),
+            day,
             font=_font(26, True),
             fill="white",
             anchor="rm",
         )
         items = grouped[day]
-        count_text = _rtl(f"{_arabic_number(len(items))} أنمي")
+        count_text = f"{_english_number(len(items))} anime"
         draw.text(
             (margin + 18, y + day_header_height // 2),
             count_text,
@@ -405,7 +395,7 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
             time = item.get("time")
             time_width = 0
             if time:
-                time_text = _arabic_number(time)
+                time_text = _english_number(time)
                 time_font = _font(17, True)
                 time_width = min(column_width // 2, int(draw.textlength(time_text, font=time_font)) + 20)
                 time_box = (box[0] + 8, item_y + 6, box[0] + 8 + time_width, item_y + item_height - 10)

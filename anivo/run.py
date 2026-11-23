@@ -36,7 +36,7 @@ def main():
             content = f"**أفضل 10 أنميات أسبوعية من Anime Trending**\n\n{SIGNATURE}"
             image_bytes = build_ranking_image(
                 anime_items,
-                title="أفضل ١٠ أنميات الأسبوع",
+                title="Top 10 Anime This Week",
                 source_url="https://www.anitrendz.com/charts/top-anime",
                 week=week,
             )
@@ -51,8 +51,8 @@ def main():
                 "sub_text": f"{label} · {item.get('sub_text', '')}",
             }
             for entries, group, label in (
-                (male, "male", "ذكور"),
-                (female, "female", "إناث"),
+                (male, "male", "Male"),
+                (female, "female", "Female"),
             )
             for item in entries
         ]
