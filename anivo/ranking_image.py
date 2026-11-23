@@ -55,7 +55,7 @@ def _font(size, bold=False):
 
 
 def _rtl(text):
-    return get_display(arabic_reshaper.reshape(str(text)))
+    return get_display(arabic_reshaper.reshape(str(text)), base_dir="R")
 
 
 def _arabic_number(value):
@@ -65,6 +65,21 @@ def _arabic_number(value):
 def _date_ar(value):
     parsed = date.fromisoformat(value) if isinstance(value, str) else value
     return f"{_arabic_number(parsed.day)} {ARABIC_MONTHS[parsed.month]} {_arabic_number(parsed.year)}"
+
+
+def _date_range(start, end):
+    if start.year == end.year and start.month == end.month:
+        return (
+            f"{_arabic_number(start.day)} – {_arabic_number(end.day)} "
+            f"{ARABIC_MONTHS[end.month]} {_arabic_number(end.year)}"
+        )
+    if start.year == end.year:
+        return (
+            f"{_arabic_number(start.day)} {ARABIC_MONTHS[start.month]} – "
+            f"{_arabic_number(end.day)} {ARABIC_MONTHS[end.month]} "
+            f"{_arabic_number(end.year)}"
+        )
+    return f"{_date_ar(start)} – {_date_ar(end)}"
 
 
 def _week_data(week=None):
@@ -80,7 +95,7 @@ def _week_data(week=None):
             season_name = f"{season_name} {_arabic_number(year)}"
         return {
             "no": week.get("no") or end.isocalendar().week,
-            "range": f"{_date_ar(start)} – {_date_ar(end)}",
+            "range": _date_range(start, end),
             "season": season_name,
         }
 
@@ -100,7 +115,7 @@ def _week_data(week=None):
         season_name = f"{season_name} {_arabic_number(today.year)}"
     return {
         "no": week.get("no") or today.isocalendar().week,
-        "range": f"{_date_ar(start)} – {_date_ar(end)}",
+        "range": _date_range(start, end),
         "season": season_name,
     }
 
@@ -164,7 +179,12 @@ def _header(image, draw, title, week):
     while title_font.size > 30 and draw.textbbox((0, 0), _rtl(title), font=title_font)[2] > 660:
         title_font = _font(title_font.size - 2, True)
     draw.text((right, y + 69), _rtl(title), font=title_font, fill="white", anchor="ra")
-    draw.text((right, y + 137), _rtl(f"الفترة: {week['range']}"), font=_font(23), fill="#FFF6FB", anchor="ra")
+    period_font = _font(23)
+    period_label = _rtl("الفترة:")
+    period_range = _rtl(week["range"])
+    draw.text((right, y + 137), period_label, font=period_font, fill="#FFF6FB", anchor="ra")
+    range_right = right - draw.textlength(period_label, font=period_font) - 12
+    draw.text((range_right, y + 137), period_range, font=period_font, fill="#FFF6FB", anchor="ra")
 
 
 def _background(width, height):
@@ -195,9 +215,9 @@ def current_week_data():
 
 def _fit_text(draw, text, font, max_width):
     text = str(text)
-    if draw.textlength(text, font=font) <= max_width:
+    if draw.textlength(_rtl(text), font=font) <= max_width:
         return text
-    while text and draw.textlength(text + "…", font=font) > max_width:
+    while text and draw.textlength(_rtl(text + "…"), font=font) > max_width:
         text = text[:-1]
     return text.rstrip() + "…"
 
@@ -245,34 +265,17 @@ def build_ranking_image(items, title="أفضل ١٠ أنميات الأسبوع"
         _paste_cover(image, item.get("image_url"), thumb_box)
 
         text_right = thumb_box[0] - 22
-        name = item.get("name", "")
         name_font = _font(31, True)
-        while name_font.size > 20 and draw.textbbox((0, 0), name, font=name_font)[2] > 460:
+        info_width = thumb_box[0] - margin - 32
+        name = _fit_text(draw, item.get("name", ""), name_font, info_width)
+        while name_font.size > 20 and draw.textlength(_rtl(name), font=name_font) > info_width:
             name_font = _font(name_font.size - 1, True)
-        draw.text((text_right, row_y + 25), name, font=name_font, fill=COLORS["ink"], anchor="ra")
-        votes = item.get("votes")
-        detail = f"{_arabic_number(votes)} صوت" if votes is not None else "تصنيف Anime Trending"
-        draw.text((text_right, row_y + 68), _rtl(detail), font=_font(22, True), fill=COLORS["purple"], anchor="ra")
-
-        previous = item.get("previous_position")
-        position = item.get("position", index + 1)
-        weeks = item.get("weeks") or 1
-        stats_x = margin + 6
-        stats_y = row_y + 13
-        if previous is None:
-            badge_text = _rtl("جديد ✦")
-            badge_color = COLORS["deep"]
-        else:
-            delta = int(previous) - int(position)
-            badge_text = _rtl(f"▲ {_arabic_number(delta)}") if delta > 0 else (
-                _rtl(f"▼ {_arabic_number(abs(delta))}") if delta < 0 else _rtl("ثابت")
-            )
-            badge_color = COLORS["purple"] if delta > 0 else (
-                COLORS["pink"] if delta < 0 else COLORS["lilac"]
-            )
-        draw.rounded_rectangle((stats_x, stats_y, stats_x + 136, stats_y + 42), radius=14, fill=badge_color)
-        draw.text((stats_x + 68, stats_y + 21), badge_text, font=_font(21, True), fill="white" if badge_color != COLORS["lilac"] else COLORS["deep"], anchor="mm")
-        draw.text((stats_x + 68, row_y + 82), _rtl(f"{_arabic_number(weeks)} أسابيع"), font=_font(17, True), fill=COLORS["deep"], anchor="mm")
+        draw.text((text_right, row_y + 25), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="ra")
+        detail = item.get("sub_text")
+        if detail:
+            detail_font = _font(22, True)
+            detail = _fit_text(draw, detail, detail_font, info_width)
+            draw.text((text_right, row_y + 68), _rtl(detail), font=detail_font, fill=COLORS["purple"], anchor="ra")
 
     if source_url:
         source_y = height - 32
@@ -317,10 +320,10 @@ def build_character_image(items, week=None, source_url=None):
         text_right = x + card_width - 20
         name_font = _font(29, True)
         name = _fit_text(draw, item.get("name", ""), name_font, card_width - 40)
-        draw.text((text_right, y + picture_height + 14), name, font=name_font, fill=COLORS["ink"], anchor="ra")
+        draw.text((text_right, y + picture_height + 14), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="ra")
         sub_font = _font(20, True)
         subtitle = _fit_text(draw, item.get("sub_text", ""), sub_font, card_width - 40)
-        draw.text((text_right, y + picture_height + 58), subtitle, font=sub_font, fill=COLORS["purple"], anchor="ra")
+        draw.text((text_right, y + picture_height + 58), _rtl(subtitle), font=sub_font, fill=COLORS["purple"], anchor="ra")
 
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
@@ -335,58 +338,94 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
         if day in grouped and item.get("title"):
             grouped[day].append(item)
 
+    active_days = [day for day in day_order if grouped[day]]
     width, margin, header_height = 1080, 40, 200
-    day_width, row_gap = 150, 14
-    title_font = _font(25)
-    item_height = 48
-    row_heights = {
-        day: max(82, 24 + max(1, len(grouped[day])) * item_height)
-        for day in day_order
-    }
-    height = margin * 2 + header_height + 20 + sum(row_heights.values()) + row_gap * 6 + 20
+    content_width, row_gap = width - 2 * margin, 16
+    day_header_height, item_height = 52, 42
+    column_gap, inner_padding = 12, 12
+
+    def day_height(day):
+        columns = (len(grouped[day]) + 1) // 2
+        return day_header_height + 2 * inner_padding + max(1, columns) * item_height
+
+    height = margin * 2 + header_height + 20
+    height += sum(day_height(day) for day in active_days)
+    height += max(0, len(active_days) - 1) * row_gap + 20
     image = _background(width, height)
     draw = ImageDraw.Draw(image)
     _header(image, draw, "جدول الأنمي الأسبوعي", _week_data(week))
 
     y = margin + header_height + 20
-    content_width = width - 2 * margin
-    for day in day_order:
-        row_height = row_heights[day]
+    title_font = _font(22, True)
+    column_width = (content_width - 2 * inner_padding - column_gap) // 2
+    for day in active_days:
+        row_height = day_height(day)
         draw.rounded_rectangle(
             (margin, y, margin + content_width, y + row_height),
-            radius=26,
-            fill="white",
+            radius=24,
+            fill=COLORS["white"],
         )
         day_color = COLORS["purple"] if day == today else COLORS["deep"]
-        draw.rounded_rectangle(
-            (margin + content_width - day_width, y, margin + content_width, y + row_height),
-            radius=26,
-            fill=day_color,
+        gradient, mask = _rounded_gradient(
+            (content_width, day_header_height), day_color, COLORS["mid"], 22
         )
+        image.paste(gradient, (margin, y), mask)
         draw.rectangle(
-            (margin + content_width - day_width - 20, y, margin + content_width - day_width + 12, y + row_height),
-            fill=day_color,
+            (margin, y + day_header_height - 22, margin + content_width, y + day_header_height),
+            fill=COLORS["mid"],
         )
         draw.text(
-            (margin + content_width - day_width // 2, y + row_height // 2),
+            (margin + content_width - 18, y + day_header_height // 2),
             _rtl(ARABIC_DAYS[day]),
-            font=_font(28, True),
+            font=_font(26, True),
             fill="white",
-            anchor="mm",
+            anchor="rm",
         )
         items = grouped[day]
-        if not items:
-            empty_text = _rtl("لا توجد حلقات مُدرجة")
-            draw.text((margin + 26, y + row_height // 2), empty_text, font=_font(20), fill=COLORS["purple"], anchor="lm")
-        else:
-            for item_index, item in enumerate(items):
-                item_y = y + 14 + item_index * item_height
-                title = _fit_text(draw, item["title"], title_font, content_width - day_width - 65)
-                draw.text((margin + content_width - day_width - 18, item_y), title, font=title_font, fill=COLORS["ink"], anchor="ra")
-                episode = item.get("episode")
-                if episode:
-                    episode_text = _rtl(f"الحلقة {_arabic_number(episode)}")
-                    draw.text((margin + 25, item_y), episode_text, font=_font(20, True), fill=COLORS["purple"], anchor="la")
+        count_text = _rtl(f"{_arabic_number(len(items))} أنمي")
+        draw.text(
+            (margin + 18, y + day_header_height // 2),
+            count_text,
+            font=_font(20, True),
+            fill="white",
+            anchor="lm",
+        )
+
+        right_x = margin + inner_padding + column_width + column_gap
+        left_x = margin + inner_padding
+        for item_index, item in enumerate(items):
+            right_column = item_index < (len(items) + 1) // 2
+            column_x = right_x if right_column else left_x
+            column_index = item_index if right_column else item_index - (len(items) + 1) // 2
+            item_y = y + day_header_height + inner_padding + column_index * item_height
+            box = (column_x, item_y, column_x + column_width, item_y + item_height - 4)
+            draw.rounded_rectangle(box, radius=12, fill="#FBEAF6")
+
+            title_right = box[2] - 12
+            time = item.get("time")
+            time_width = 0
+            if time:
+                time_text = _arabic_number(time)
+                time_font = _font(17, True)
+                time_width = min(column_width // 2, int(draw.textlength(time_text, font=time_font)) + 20)
+                time_box = (box[0] + 8, item_y + 6, box[0] + 8 + time_width, item_y + item_height - 10)
+                draw.rounded_rectangle(time_box, radius=10, fill=COLORS["mid"])
+                draw.text(
+                    ((time_box[0] + time_box[2]) // 2, (time_box[1] + time_box[3]) // 2),
+                    time_text,
+                    font=time_font,
+                    fill="white",
+                    anchor="mm",
+                )
+            title_width = column_width - 24 - time_width - (8 if time else 0)
+            title = _fit_text(draw, item["title"], title_font, title_width)
+            draw.text(
+                (title_right, item_y + (item_height - 4) // 2),
+                _rtl(title),
+                font=title_font,
+                fill=COLORS["ink"],
+                anchor="rm",
+            )
         y += row_height + row_gap
 
     output = BytesIO()
