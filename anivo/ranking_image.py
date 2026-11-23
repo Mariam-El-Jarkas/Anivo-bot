@@ -154,26 +154,26 @@ def _header(image, draw, title, week):
         (width, height), COLORS["deep"], COLORS["pink"], 36
     )
     image.paste(gradient, (x, y), mask)
-    draw.ellipse((x + 4, y + 4, x + 248, y + 198), fill="#86509B")
-    badge = (x + 42, y + 34, x + 210, y + 166)
+    draw.ellipse((x + width - 248, y + 4, x + width - 4, y + 198), fill="#86509B")
+    badge = (x + width - 210, y + 34, x + width - 42, y + 166)
     draw.rounded_rectangle(badge, radius=26, fill=COLORS["paper"])
     center_x = (badge[0] + badge[2]) // 2
     draw.text((center_x, y + 48), "WEEK", font=_font(22, True), fill=COLORS["deep"], anchor="mt")
     draw.text((center_x, y + 75), _english_number(week["no"]), font=_font(58, True), fill=COLORS["deep"], anchor="mt")
     draw.text((center_x, y + 137), _rtl(week.get("season", "")), font=_font(17, True), fill=COLORS["purple"], anchor="mt")
 
-    right = x + width - 42
-    draw.text((right, y + 28), "ANIVO", font=_font(24, True), fill="white", anchor="ra")
+    left = x + 42
+    draw.text((left, y + 28), "ANIVO", font=_font(24, True), fill="white", anchor="la")
     title_font = _font(48, True)
-    while title_font.size > 30 and draw.textbbox((0, 0), _rtl(title), font=title_font)[2] > 660:
+    while title_font.size > 30 and draw.textbbox((0, 0), _rtl(title), font=title_font)[2] > 690:
         title_font = _font(title_font.size - 2, True)
-    draw.text((right, y + 69), _rtl(title), font=title_font, fill="white", anchor="ra")
+    draw.text((left, y + 69), _rtl(title), font=title_font, fill="white", anchor="la")
     draw.text(
-        (right, y + 137),
+        (left, y + 137),
         f"Period: {week['range']}",
         font=_font(23),
         fill="#FFF6FB",
-        anchor="ra",
+        anchor="la",
     )
 
 
@@ -232,44 +232,44 @@ def build_ranking_image(items, title="Top 10 Anime This Week", source_url=None, 
             fill=COLORS["white"],
         )
         draw.rounded_rectangle(
-            (margin + row_width - 112, row_y, margin + row_width, row_y + row_height),
+            (margin, row_y, margin + 112, row_y + row_height),
             radius=26,
             fill=COLORS["deep"],
         )
         draw.rectangle(
-            (margin + row_width - 124, row_y, margin + row_width - 98, row_y + row_height),
+            (margin + 98, row_y, margin + 124, row_y + row_height),
             fill=COLORS["deep"],
         )
         draw.text(
-            (margin + row_width - 56, row_y + row_height // 2),
+            (margin + 56, row_y + row_height // 2),
             _english_number(index + 1),
             font=_font(54, True),
             fill="white",
             anchor="mm",
         )
-        thumb_box = (margin + row_width - 112 - 210, row_y, 210, row_height)
+        thumb_box = (margin + 112, row_y, 210, row_height)
         draw.rectangle(
             (thumb_box[0], row_y, thumb_box[0] + thumb_box[2], row_y + row_height),
             fill=COLORS["lilac"],
         )
         _paste_cover(image, item.get("image_url"), thumb_box)
 
-        text_right = thumb_box[0] - 22
+        text_left = thumb_box[0] + thumb_box[2] + 22
         name_font = _font(31, True)
-        info_width = thumb_box[0] - margin - 32
+        info_width = margin + row_width - text_left - 22
         name = _fit_text(draw, item.get("name", ""), name_font, info_width)
         while name_font.size > 20 and draw.textlength(_rtl(name), font=name_font) > info_width:
             name_font = _font(name_font.size - 1, True)
-        draw.text((text_right, row_y + 25), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="ra")
+        draw.text((text_left, row_y + 25), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="la")
         detail = item.get("sub_text")
         if detail:
             detail_font = _font(22, True)
             detail = _fit_text(draw, detail, detail_font, info_width)
-            draw.text((text_right, row_y + 68), _rtl(detail), font=detail_font, fill=COLORS["purple"], anchor="ra")
+            draw.text((text_left, row_y + 68), _rtl(detail), font=detail_font, fill=COLORS["purple"], anchor="la")
 
     if source_url:
         source_y = height - 32
-        draw.text((width - margin, source_y), "Source: Anime Trending", font=_font(17), fill=COLORS["purple"], anchor="ra")
+        draw.text((margin, source_y), "Source: Anime Trending", font=_font(17), fill=COLORS["purple"], anchor="la")
 
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
@@ -290,7 +290,7 @@ def build_character_image(items, week=None, source_url=None):
     start_y = margin + header_height + 20
     for index, item in enumerate(items):
         row, column = divmod(index, 2)
-        x = margin + (1 - column) * (card_width + gap)
+        x = margin + column * (card_width + gap)
         y = start_y + row * (card_height + gap)
         draw.rounded_rectangle(
             (x, y, x + card_width, y + card_height),
@@ -299,21 +299,21 @@ def build_character_image(items, week=None, source_url=None):
         )
         image_box = (x, y, card_width, picture_height)
         _paste_cover(image, item.get("image_url"), image_box)
-        draw.rounded_rectangle((x + card_width - 78, y + 14, x + card_width - 14, y + 78), radius=32, fill=COLORS["deep"])
+        draw.rounded_rectangle((x + 14, y + 14, x + 78, y + 78), radius=32, fill=COLORS["deep"])
         draw.text(
-            (x + card_width - 46, y + 46),
+            (x + 46, y + 46),
             _english_number(item.get("position", index + 1)),
             font=_font(35, True),
             fill="white",
             anchor="mm",
         )
-        text_right = x + card_width - 20
+        text_left = x + 20
         name_font = _font(29, True)
         name = _fit_text(draw, item.get("name", ""), name_font, card_width - 40)
-        draw.text((text_right, y + picture_height + 14), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="ra")
+        draw.text((text_left, y + picture_height + 14), _rtl(name), font=name_font, fill=COLORS["ink"], anchor="la")
         sub_font = _font(20, True)
         subtitle = _fit_text(draw, item.get("sub_text", ""), sub_font, card_width - 40)
-        draw.text((text_right, y + picture_height + 58), _rtl(subtitle), font=sub_font, fill=COLORS["purple"], anchor="ra")
+        draw.text((text_left, y + picture_height + 58), _rtl(subtitle), font=sub_font, fill=COLORS["purple"], anchor="la")
 
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
@@ -365,16 +365,16 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
             fill=COLORS["mid"],
         )
         draw.text(
-            (margin + content_width - 18, y + day_header_height // 2),
+            (margin + 18, y + day_header_height // 2),
             day,
             font=_font(26, True),
             fill="white",
-            anchor="rm",
+            anchor="lm",
         )
         items = grouped[day]
         count_text = f"{_english_number(len(items))} anime"
         draw.text(
-            (margin + content_width - 190, y + day_header_height // 2),
+            (margin + content_width - 18, y + day_header_height // 2),
             count_text,
             font=_font(20, True),
             fill="white",
@@ -384,21 +384,21 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
         right_x = margin + inner_padding + column_width + column_gap
         left_x = margin + inner_padding
         for item_index, item in enumerate(items):
-            right_column = item_index < (len(items) + 1) // 2
-            column_x = right_x if right_column else left_x
-            column_index = item_index if right_column else item_index - (len(items) + 1) // 2
+            left_column = item_index < (len(items) + 1) // 2
+            column_x = left_x if left_column else right_x
+            column_index = item_index if left_column else item_index - (len(items) + 1) // 2
             item_y = y + day_header_height + inner_padding + column_index * item_height
             box = (column_x, item_y, column_x + column_width, item_y + item_height - 4)
             draw.rounded_rectangle(box, radius=12, fill="#FBEAF6")
 
-            title_right = box[2] - 12
+            title_left = box[0] + 12
             time = item.get("time")
             time_width = 0
             if time:
                 time_text = _english_number(time)
                 time_font = _font(17, True)
                 time_width = min(column_width // 2, int(draw.textlength(time_text, font=time_font)) + 20)
-                time_box = (box[0] + 8, item_y + 6, box[0] + 8 + time_width, item_y + item_height - 10)
+                time_box = (box[2] - 8 - time_width, item_y + 6, box[2] - 8, item_y + item_height - 10)
                 draw.rounded_rectangle(time_box, radius=10, fill=COLORS["mid"])
                 draw.text(
                     ((time_box[0] + time_box[2]) // 2, (time_box[1] + time_box[3]) // 2),
@@ -410,11 +410,11 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
             title_width = column_width - 24 - time_width - (8 if time else 0)
             title = _fit_text(draw, item["title"], title_font, title_width)
             draw.text(
-                (title_right, item_y + (item_height - 4) // 2),
+                (title_left, item_y + (item_height - 4) // 2),
                 _rtl(title),
                 font=title_font,
                 fill=COLORS["ink"],
-                anchor="rm",
+                anchor="lm",
             )
         y += row_height + row_gap
 
