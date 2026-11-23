@@ -9,6 +9,7 @@ import html
 import time
 from datetime import datetime, timezone, timedelta
 from xml.etree import ElementTree
+from urllib.parse import urljoin
 
 FEED_BASE = os.getenv("FXTWITTER_BASE", "https://fxtwitter.com").rstrip("/")
 USERS = ["animetherapy", "ahmedm94m", "ascom0", "animerakuar"]
@@ -135,11 +136,14 @@ def fetch_anime_schedule(day=None):
     for item in data[:50]:
         title = item.get("title")
         broadcast = item.get("broadcast", {}) or {}
+        images = item.get("images", {}) or {}
+        image = images.get("webp") or images.get("jpg") or {}
         schedule.append({
             "title": title,
             "day": broadcast.get("day"),
             "time": broadcast.get("time"),
             "timezone": broadcast.get("timezone"),
+            "image_url": image.get("large_image_url") or image.get("image_url"),
             "url": item.get("url"),
         })
     if schedule:
@@ -169,6 +173,7 @@ def fetch_anilist_schedule(day=None):
           media {
             title { english romaji }
             siteUrl
+            coverImage { extraLarge large }
           }
         }
       }
@@ -218,6 +223,8 @@ def fetch_anilist_schedule(day=None):
                 "time": f"{airing_at:%H:%M} UTC",
                 "timezone": "UTC",
                 "episode": entry.get("episode"),
+                "image_url": (media.get("coverImage") or {}).get("extraLarge")
+                or (media.get("coverImage") or {}).get("large"),
                 "url": media.get("siteUrl"),
             })
 
@@ -257,13 +264,23 @@ def fetch_witanime_schedule(day=None):
             continue
         end = markers[index + 1].start() if index + 1 < len(markers) else len(response.text)
         chunk = response.text[marker.end():end]
-        anime_links = re.findall(
-            r'href=["\'][^"\']*?/anime/([a-z0-9-]+)["\']',
+        anime_cards = re.findall(
+            r'<a\b[^>]*href=["\']([^"\']*?/anime/([a-z0-9-]+))["\'][^>]*>(.*?)</a>',
             chunk,
-            re.I,
+            re.I | re.S,
         )
-        for slug in dict.fromkeys(anime_links):
-            title = slug.replace("-", " ").title()
+        for anime_url, slug, card_html in anime_cards:
+            title_match = re.search(r"<figcaption\b[^>]*>(.*?)</figcaption>", card_html, re.I | re.S)
+            title = (
+                re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", title_match.group(1)))).strip()
+                if title_match else slug.replace("-", " ").title()
+            )
+            image_match = re.search(
+                r"<img\b[^>]*\bsrc=[\"']([^\"']+)[\"']",
+                card_html,
+                re.I | re.S,
+            )
+            image_url = urljoin(base, html.unescape(image_match.group(1))) if image_match else None
             if any(
                 item["title"] == title and item["day"] == english_day
                 for item in schedule
@@ -274,7 +291,8 @@ def fetch_witanime_schedule(day=None):
                 "day": english_day,
                 "time": None,
                 "timezone": None,
-                "url": f"{base}/anime/{slug}",
+                "image_url": image_url,
+                "url": urljoin(base, anime_url),
             })
     return schedule[:100]
 

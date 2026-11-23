@@ -10,7 +10,7 @@ from anivo.discord_client import send_message, bold, SIGNATURE
 from anivo.ranking_image import (
     build_character_image,
     build_ranking_image,
-    build_schedule_image,
+    build_schedule_images,
     current_week_data,
 )
 from anivo.sources import (
@@ -99,21 +99,25 @@ def main():
         schedule = fetch_anime_schedule(day)
         if not schedule:
             raise RuntimeError(
-                "No anime schedule data was available from WitAnime or Jikan; "
+                "No anime schedule data was available from WitAnime, Jikan, or AniList; "
                 "see the source warnings above."
             )
         heading = f"**جدول صدور الأنمي - {day}**" if day else "**جدول صدور الأنمي أسبوعياً**"
-        image_bytes = build_schedule_image(
+        image_pages = build_schedule_images(
             schedule,
             week=current_week_data(),
             today=time.strftime("%A"),
         )
-        send_message(
-            f"{heading}\n\n{SIGNATURE}",
-            image_bytes=image_bytes,
-            filename="anivo-anime-weekly-schedule.png",
-        )
-        print("[DONE] Sent anime release schedule.")
+        if not image_pages:
+            raise RuntimeError("The anime schedule could not be rendered into image pages.")
+        for page_number, image_bytes in enumerate(image_pages, start=1):
+            page_heading = f"{heading} ({page_number}/{len(image_pages)})" if len(image_pages) > 1 else heading
+            send_message(
+                f"{page_heading}\n\n{SIGNATURE}",
+                image_bytes=image_bytes,
+                filename=f"anivo-anime-weekly-schedule-{page_number:02}.png",
+            )
+        print(f"[DONE] Sent anime release schedule ({len(image_pages)} page(s)).")
         return
 
     state = load()

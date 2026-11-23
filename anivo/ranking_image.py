@@ -319,7 +319,7 @@ def build_character_image(items, week=None, source_url=None):
     return output.getvalue()
 
 
-def build_schedule_image(schedule, week=None, today=None, source_url=None):
+def build_schedule_images(schedule, week=None, today=None):
     day_order = ("Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
     grouped = {day: [] for day in day_order}
     for item in schedule:
@@ -328,95 +328,166 @@ def build_schedule_image(schedule, week=None, today=None, source_url=None):
             grouped[day].append(item)
 
     active_days = [day for day in day_order if grouped[day]]
-    width, margin, header_height = 1080, 40, 200
-    content_width, row_gap = width - 2 * margin, 16
-    day_header_height, item_height = 52, 42
-    column_gap, inner_padding = 12, 12
+    if not active_days:
+        return []
 
-    def day_height(day):
-        columns = (len(grouped[day]) + 1) // 2
-        return day_header_height + 2 * inner_padding + max(1, columns) * item_height
-
-    height = margin * 2 + header_height + 20
-    height += sum(day_height(day) for day in active_days)
-    height += max(0, len(active_days) - 1) * row_gap + 20
-    image = _background(width, height)
-    draw = ImageDraw.Draw(image)
-    _header(image, draw, "Weekly Anime Schedule", _week_data(week))
-
-    y = margin + header_height + 20
-    title_font = _font(22, True)
-    column_width = (content_width - 2 * inner_padding - column_gap) // 2
+    max_items_per_page = 20
+    page_groups = []
+    current_page = []
+    page_item_count = 0
     for day in active_days:
-        row_height = day_height(day)
-        draw.rounded_rectangle(
-            (margin, y, margin + content_width, y + row_height),
-            radius=24,
-            fill=COLORS["white"],
-        )
-        day_color = COLORS["purple"] if day == today else COLORS["deep"]
-        gradient, mask = _rounded_gradient(
-            (content_width, day_header_height), day_color, COLORS["mid"], 22
-        )
-        image.paste(gradient, (margin, y), mask)
-        draw.rectangle(
-            (margin, y + day_header_height - 22, margin + content_width, y + day_header_height),
-            fill=COLORS["mid"],
-        )
-        draw.text(
-            (margin + 18, y + day_header_height // 2),
-            day,
-            font=_font(26, True),
-            fill="white",
-            anchor="lm",
-        )
         items = grouped[day]
-        count_text = f"{_english_number(len(items))} anime"
-        draw.text(
-            (margin + content_width - 18, y + day_header_height // 2),
-            count_text,
-            font=_font(20, True),
-            fill="white",
-            anchor="rm",
+        start = 0
+        while start < len(items):
+            page_capacity = max_items_per_page - page_item_count
+            day_items = items[start:start + page_capacity]
+            current_page.append((day, day_items))
+            page_item_count += len(day_items)
+            start += len(day_items)
+            if page_item_count == max_items_per_page:
+                page_groups.append(current_page)
+                current_page = []
+                page_item_count = 0
+    if current_page:
+        page_groups.append(current_page)
+
+    width, margin, header_height = 1080, 40, 200
+    content_width = width - 2 * margin
+    day_header_height, card_height = 52, 132
+    day_gap = 14
+    inner_padding, column_gap = 12, 12
+    column_width = (content_width - 2 * inner_padding - column_gap) // 2
+    cover_width, cover_height = 84, 112
+    title_font, meta_font = _font(20, True), _font(15, True)
+
+    def wrapped_title(draw, title, max_width):
+        words = str(title).split()
+        lines, current = [], ""
+        while words:
+            candidate = f"{current} {words[0]}".strip()
+            if draw.textlength(candidate, font=title_font) <= max_width:
+                current = candidate
+                words.pop(0)
+            elif current:
+                lines.append(current)
+                current = ""
+                if len(lines) == 2:
+                    break
+            else:
+                original_word = words.pop(0)
+                word = original_word
+                while word and draw.textlength(word + "…", font=title_font) > max_width:
+                    word = word[:-1]
+                lines.append(word + ("…" if words or word != original_word else ""))
+                if len(lines) == 2:
+                    break
+        if current and len(lines) < 2:
+            lines.append(current)
+        if words and lines:
+            last = lines[-1]
+            while last and draw.textlength(f"{last}…", font=title_font) > max_width:
+                last = last[:-1]
+            lines[-1] = last.rstrip() + "…"
+        return lines
+
+    images = []
+    for page_number, sections in enumerate(page_groups, start=1):
+        def section_height(items):
+            rows = (len(items) + 1) // 2
+            return day_header_height + inner_padding + rows * card_height + inner_padding
+
+        height = margin * 2 + header_height + 20
+        height += sum(section_height(items) for _, items in sections)
+        height += max(0, len(sections) - 1) * day_gap
+        image = _background(width, height)
+        draw = ImageDraw.Draw(image)
+        _header(
+            image,
+            draw,
+            f"Weekly Anime Schedule · {page_number}/{len(page_groups)}",
+            _week_data(week),
         )
 
-        right_x = margin + inner_padding + column_width + column_gap
-        left_x = margin + inner_padding
-        for item_index, item in enumerate(items):
-            left_column = item_index < (len(items) + 1) // 2
-            column_x = left_x if left_column else right_x
-            column_index = item_index if left_column else item_index - (len(items) + 1) // 2
-            item_y = y + day_header_height + inner_padding + column_index * item_height
-            box = (column_x, item_y, column_x + column_width, item_y + item_height - 4)
-            draw.rounded_rectangle(box, radius=12, fill="#FBEAF6")
-
-            title_left = box[0] + 12
-            time = item.get("time")
-            time_width = 0
-            if time:
-                time_text = _english_number(time)
-                time_font = _font(17, True)
-                time_width = min(column_width // 2, int(draw.textlength(time_text, font=time_font)) + 20)
-                time_box = (box[2] - 8 - time_width, item_y + 6, box[2] - 8, item_y + item_height - 10)
-                draw.rounded_rectangle(time_box, radius=10, fill=COLORS["mid"])
-                draw.text(
-                    ((time_box[0] + time_box[2]) // 2, (time_box[1] + time_box[3]) // 2),
-                    time_text,
-                    font=time_font,
-                    fill="white",
-                    anchor="mm",
-                )
-            title_width = column_width - 24 - time_width - (8 if time else 0)
-            title = _fit_text(draw, item["title"], title_font, title_width)
+        y = margin + header_height + 20
+        for day, items in sections:
+            row_height = section_height(items)
+            draw.rounded_rectangle(
+                (margin, y, margin + content_width, y + row_height),
+                radius=24,
+                fill=COLORS["white"],
+            )
+            day_color = COLORS["purple"] if day == today else COLORS["deep"]
+            gradient, mask = _rounded_gradient(
+                (content_width, day_header_height), day_color, COLORS["mid"], 22
+            )
+            image.paste(gradient, (margin, y), mask)
+            draw.rectangle(
+                (margin, y + day_header_height - 22, margin + content_width, y + day_header_height),
+                fill=COLORS["mid"],
+            )
             draw.text(
-                (title_left, item_y + (item_height - 4) // 2),
-                _rtl(title),
-                font=title_font,
-                fill=COLORS["ink"],
+                (margin + 18, y + day_header_height // 2),
+                day,
+                font=_font(26, True),
+                fill="white",
                 anchor="lm",
             )
-        y += row_height + row_gap
+            draw.text(
+                (margin + content_width - 18, y + day_header_height // 2),
+                f"{_english_number(len(items))} anime",
+                font=_font(20, True),
+                fill="white",
+                anchor="rm",
+            )
 
-    output = BytesIO()
-    image.save(output, format="PNG", optimize=True)
-    return output.getvalue()
+            for item_index, item in enumerate(items):
+                row, column = divmod(item_index, 2)
+                card_x = margin + inner_padding + column * (column_width + column_gap)
+                card_y = y + day_header_height + inner_padding + row * card_height
+                card_box = (card_x, card_y, card_x + column_width, card_y + card_height - 8)
+                draw.rounded_rectangle(card_box, radius=18, fill="#FBEAF6")
+
+                cover_x, cover_y = card_x + 12, card_y + 10
+                cover_gradient, cover_mask = _rounded_gradient(
+                    (cover_width, cover_height), COLORS["lilac"], COLORS["mid"], 14
+                )
+                image.paste(cover_gradient, (cover_x, cover_y), cover_mask)
+                _paste_cover(
+                    image,
+                    item.get("image_url"),
+                    (cover_x, cover_y, cover_width, cover_height),
+                )
+
+                text_x = cover_x + cover_width + 12
+                text_width = column_width - (text_x - card_x) - 12
+                for line_index, line in enumerate(wrapped_title(draw, item["title"], text_width)):
+                    draw.text(
+                        (text_x, card_y + 18 + line_index * 26),
+                        line,
+                        font=title_font,
+                        fill=COLORS["ink"],
+                        anchor="la",
+                    )
+
+                meta = []
+                if item.get("episode") is not None:
+                    meta.append(f"EP. {_english_number(item['episode'])}")
+                if item.get("time"):
+                    meta.append(_english_number(item["time"]))
+                meta_text = " · ".join(meta) or "AIRING THIS WEEK"
+                meta_width = min(text_width, int(draw.textlength(meta_text, font=meta_font)) + 18)
+                meta_box = (text_x, card_y + 86, text_x + meta_width, card_y + 112)
+                draw.rounded_rectangle(meta_box, radius=10, fill=COLORS["white"])
+                draw.text(
+                    (meta_box[0] + 9, (meta_box[1] + meta_box[3]) // 2),
+                    meta_text,
+                    font=meta_font,
+                    fill=COLORS["purple"],
+                    anchor="lm",
+                )
+            y += row_height + day_gap
+
+        output = BytesIO()
+        image.save(output, format="PNG", optimize=True)
+        images.append(output.getvalue())
+    return images
