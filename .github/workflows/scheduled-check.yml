@@ -1,49 +1,51 @@
-
 name: ANIVO - Scheduled source check
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
+schedule:
+- cron: “*/15 * * * *”
+workflow_dispatch:
+
+concurrency:
+group: anivo-news-check
+cancel-in-progress: false
 
 permissions:
-  contents: write
+contents: write
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
+check:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run ANIVO
-        env:
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
-        run: python -m anivo.run
-
-     
-      - name: Save ANIVO memory
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/seen_posts.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Update ANIVO seen posts"
-            git pull --rebase origin main
-            git push origin main
-          else
-            echo "No changes to save."
-          fi
-
+steps:
+  - name: Check out repository
+    uses: actions/checkout@v4
+  - name: Set up Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.12"
+  - name: Install dependencies
+    run: pip install -r requirements.txt
+  - name: Run ANIVO
+    env:
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      EXTRA_FEEDS: ${{ secrets.EXTRA_FEEDS }}
+    run: python -m anivo.run
+  - name: Save ANIVO memory
+    run: |
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      git add -f data/seen_posts.json
+      if ! git diff --cached --quiet; then
+        git commit -m "Update ANIVO seen posts"
+        git fetch origin main
+        git rebase origin/main || {
+          git rebase --abort
+          echo "Rebase failed. Memory was not pushed."
+          exit 1
+        }
+        git push origin main
+      else
+        echo "No changes to save."
+      fi
