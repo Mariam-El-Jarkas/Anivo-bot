@@ -472,8 +472,6 @@ def build_schedule_images(schedule, week=None, today=None):
                 meta = []
                 if item.get("episode") is not None:
                     meta.append(f"EP. {_english_number(item['episode'])}")
-                if item.get("time"):
-                    meta.append(_english_number(item["time"]))
                 meta_text = " · ".join(meta) or "AIRING THIS WEEK"
                 meta_width = min(text_width, int(draw.textlength(meta_text, font=meta_font)) + 18)
                 meta_box = (text_x, card_y + 86, text_x + meta_width, card_y + 112)
