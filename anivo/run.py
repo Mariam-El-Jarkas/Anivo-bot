@@ -49,6 +49,9 @@ def main():
 
     if "--episodes" in sys.argv:
         items = fetch_recent_witanime_episodes(24)
+        if not items:
+            print("[SKIPPED] No recent WitAnime episodes could be fetched.")
+            return
         sent_count = 0
         for item in items:
             cache_key = f"witanime:{item['url']}"

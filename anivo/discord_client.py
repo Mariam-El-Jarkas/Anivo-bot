@@ -7,7 +7,8 @@ SIGNATURE = "🌸 أنيفو || ANIVO 🌸"
 
 def recipient_ids():
     raw = os.getenv("DISCORD_USER_IDS") or os.getenv("DISCORD_USER_ID", "")
-    return [value.strip() for value in raw.replace(",", " ").split() if value.strip()]
+    values = [value.strip() for value in raw.replace(",", " ").split() if value.strip()]
+    return [value for value in values if value.isdigit()]
 
 
 def _headers():
@@ -26,7 +27,12 @@ def send_dm(recipient_id, content, image_url=None):
         json={"recipient_id": recipient_id},
         timeout=20,
     )
-    dm.raise_for_status()
+    if not dm.ok:
+        detail = dm.text[:500]
+        raise RuntimeError(
+            f"Discord rejected DM-channel creation for recipient {recipient_id}: "
+            f"{dm.status_code} {detail}"
+        )
     payload = {"content": content[:2000]}
     if image_url:
         payload["embeds"] = [{"image": {"url": image_url}}]
@@ -41,6 +47,11 @@ def send_dm(recipient_id, content, image_url=None):
 
 def send_message(content, image_url=None, recipient_ids_override=None):
     ids = recipient_ids_override or recipient_ids()
+    if not ids:
+        raise RuntimeError(
+            "No valid Discord recipient IDs configured. "
+            "Set DISCORD_USER_IDS to numeric Discord user IDs."
+        )
     for recipient_id in ids:
         send_dm(recipient_id, content, image_url)
 

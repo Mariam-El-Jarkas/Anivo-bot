@@ -100,19 +100,26 @@ def fetch_all():
 
 
 def fetch_anime_schedule(day=None):
-    witanime_schedule = fetch_witanime_schedule(day)
-    if witanime_schedule:
-        return witanime_schedule
+    try:
+        witanime_schedule = fetch_witanime_schedule(day)
+        if witanime_schedule:
+            return witanime_schedule
+    except requests.RequestException as exc:
+        print(f"[WARN] WitAnime schedule unavailable: {exc}")
 
-    params = {"filter": "tv"} if day is None else {"filter": "tv"}
-    response = requests.get(
-        "https://api.jikan.moe/v4/schedules",
-        params=params,
-        headers={"User-Agent": "ANIVO/0.4"},
-        timeout=25,
-    )
-    response.raise_for_status()
-    data = response.json().get("data", [])
+    try:
+        params = {"filter": "tv"} if day is None else {"filter": "tv"}
+        response = requests.get(
+            "https://api.jikan.moe/v4/schedules",
+            params=params,
+            headers={"User-Agent": "ANIVO/0.4"},
+            timeout=25,
+        )
+        response.raise_for_status()
+        data = response.json().get("data", [])
+    except requests.RequestException as exc:
+        print(f"[WARN] Jikan schedule unavailable: {exc}")
+        return []
     if day:
         day = day.lower()
         data = [item for item in data if (item.get("broadcast", {}).get("day") or "").lower() == day]
@@ -269,8 +276,16 @@ def fetch_anitrendz_chart(chart="top-anime", limit=10):
 
 def fetch_recent_witanime_episodes(hours=24):
     base = os.getenv("WITANIME_BASE", "https://witanime.site").rstrip("/")
-    response = requests.get(f"{base}/sitemap.xml", timeout=25)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            f"{base}/sitemap.xml",
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ANIVO/0.4)"},
+            timeout=25,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"[WARN] WitAnime episode sitemap unavailable: {exc}")
+        return []
     root = ElementTree.fromstring(response.content)
     namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     episode_sitemaps = [
